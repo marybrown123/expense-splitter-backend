@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="ExpenseSplitter.Api/ExpenseSplitter.Api.csproj" />
+  <Project Path="ExpenseSplitter.Application/ExpenseSplitter.Application.csproj" />
+  <Project Path="ExpenseSplitter.Infrastructure/ExpenseSplitter.Infrastructure.csproj" />
+</Solution>

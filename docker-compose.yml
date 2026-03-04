@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16
+    container_name: expense-splitter-db
+    env_file:
+      - .env
+    ports:
+      - "5433:5432"
+    volumes:
+      - expense_splitter_pg:/var/lib/postgresql/data
+
+volumes:
+  expense_splitter_pg:

@@ -20,6 +20,7 @@ Built with **.NET** and **PostgreSQL**.
 ### Prerequisites
 Make sure you have the following tools installed:
 -   .NET SDK
+-   EF Core CLI
 -   Docker
 -   Docker Compose
 -   Git
@@ -35,14 +36,18 @@ The project uses **PostgreSQL** running in **Docker**.
 ```
 docker compose up -d
 ```
-3. **Run the API**
+3. **Apply database migrations**
 ```
-dotnet run
+dotnet ef database update --project ExpenseSplitter.Infrastructure --startup-project ExpenseSplitter.Api
+```
+4. **Run the API**
+```
+dotnet run --project ExpenseSplitter.Api
 ```
 API will start on:
 `http://localhost:PORT`
 
-4. **Open Swagger**
+5. **Open Swagger**
 After starting the application, open:
 `http://localhost:PORT/swagger`
 Swagger provides interactive documentation and allows testing API endpoints directly from the browser.

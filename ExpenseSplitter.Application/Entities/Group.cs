@@ -11,4 +11,5 @@ public class Group
 
     public List<GroupMember> Members { get; set; } = new();
     public List<Expense> Expenses { get; set; } = new();
+    public List<Settlement> Settlements { get; set; } = new();
 }

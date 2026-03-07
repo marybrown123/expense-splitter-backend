@@ -159,9 +159,91 @@ public class GroupsController : ControllerBase
             return NotFound(new { message = "Group not found." });
         }
 
+        var balances = await CalculateBalances(id);
+        return Ok(balances.OrderByDescending(x => x.Balance).ToList());
+    }
+
+    [HttpGet("{id:guid}/settlement-suggestions")]
+    [ProducesResponseType(typeof(List<SettlementSuggestionResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<SettlementSuggestionResponse>>> GetSettlementSuggestions(Guid id)
+    {
+        var groupExists = await _db.Groups.AnyAsync(g => g.Id == id);
+        if (!groupExists)
+        {
+            return NotFound(new { message = "Group not found." });
+        }
+
+        var balances = await CalculateBalances(id);
+
+        var creditors = balances
+            .Where(x => x.Balance > 0)
+            .Select(x => new SettlementSuggestionItem
+            {
+                UserId = x.UserId,
+                Email = x.Email,
+                Amount = x.Balance
+            })
+            .OrderByDescending(x => x.Amount)
+            .ToList();
+
+        var debtors = balances
+            .Where(x => x.Balance < 0)
+            .Select(x => new SettlementSuggestionItem
+            {
+                UserId = x.UserId,
+                Email = x.Email,
+                Amount = Math.Abs(x.Balance)
+            })
+            .OrderByDescending(x => x.Amount)
+            .ToList();
+
+        var suggestions = new List<SettlementSuggestionResponse>();
+
+        var creditorIndex = 0;
+        var debtorIndex = 0;
+
+        while (creditorIndex < creditors.Count && debtorIndex < debtors.Count)
+        {
+            var creditor = creditors[creditorIndex];
+            var debtor = debtors[debtorIndex];
+
+            var transferAmount = decimal.Round(Math.Min(creditor.Amount, debtor.Amount), 2);
+
+            if (transferAmount > 0)
+            {
+                suggestions.Add(new SettlementSuggestionResponse
+                {
+                    FromUserId = debtor.UserId,
+                    FromUserEmail = debtor.Email,
+                    ToUserId = creditor.UserId,
+                    ToUserEmail = creditor.Email,
+                    Amount = transferAmount
+                });
+            }
+
+            creditor.Amount = decimal.Round(creditor.Amount - transferAmount, 2);
+            debtor.Amount = decimal.Round(debtor.Amount - transferAmount, 2);
+
+            if (creditor.Amount == 0)
+            {
+                creditorIndex++;
+            }
+
+            if (debtor.Amount == 0)
+            {
+                debtorIndex++;
+            }
+        }
+
+        return Ok(suggestions);
+    }
+
+    private async Task<List<GroupBalanceResponse>> CalculateBalances(Guid groupId)
+    {
         var members = await _db.GroupMembers
             .AsNoTracking()
-            .Where(gm => gm.GroupId == id)
+            .Where(gm => gm.GroupId == groupId)
             .Select(gm => new
             {
                 gm.UserId,
@@ -172,7 +254,12 @@ public class GroupsController : ControllerBase
         var expenses = await _db.Expenses
             .AsNoTracking()
             .Include(e => e.Participants)
-            .Where(e => e.GroupId == id)
+            .Where(e => e.GroupId == groupId)
+            .ToListAsync();
+
+        var settlements = await _db.Settlements
+            .AsNoTracking()
+            .Where(s => s.GroupId == groupId)
             .ToListAsync();
 
         var balances = members
@@ -187,18 +274,32 @@ public class GroupsController : ControllerBase
                     .Where(p => p.UserId == member.UserId)
                     .Sum(p => p.ShareAmount);
 
+                var sentSettlements = settlements
+                    .Where(s => s.FromUserId == member.UserId)
+                    .Sum(s => s.Amount);
+
+                var receivedSettlements = settlements
+                    .Where(s => s.ToUserId == member.UserId)
+                    .Sum(s => s.Amount);
+
                 return new GroupBalanceResponse
                 {
                     UserId = member.UserId,
                     Email = member.Email,
                     Paid = paid,
                     Owed = owed,
-                    Balance = paid - owed
+                    Balance = decimal.Round((paid - owed) - sentSettlements + receivedSettlements, 2)
                 };
             })
-            .OrderByDescending(x => x.Balance)
             .ToList();
 
-        return Ok(balances);
+        return balances;
+    }
+
+    private class SettlementSuggestionItem
+    {
+        public Guid UserId { get; set; }
+        public string Email { get; set; } = default!;
+        public decimal Amount { get; set; }
     }
 }

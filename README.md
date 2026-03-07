@@ -47,11 +47,11 @@ dotnet ef database update --project ExpenseSplitter.Infrastructure --startup-pro
 dotnet run --project ExpenseSplitter.Api
 ```
 API will start on:
-`http://localhost:PORT`
+`http://localhost:5000`
 
 5. **Open Swagger**
 After starting the application, open:
-`http://localhost:PORT/swagger`
+`http://localhost:5000/swagger`
 Swagger provides interactive documentation and allows testing API endpoints directly from the browser.
 
 ## Project status

@@ -147,4 +147,58 @@ public class GroupsController : ControllerBase
             JoinedAt = member.JoinedAt
         });
     }
+
+    [HttpGet("{id:guid}/balances")]
+    [ProducesResponseType(typeof(List<GroupBalanceResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<List<GroupBalanceResponse>>> GetBalances(Guid id)
+    {
+        var groupExists = await _db.Groups.AnyAsync(g => g.Id == id);
+        if (!groupExists)
+        {
+            return NotFound(new { message = "Group not found." });
+        }
+
+        var members = await _db.GroupMembers
+            .AsNoTracking()
+            .Where(gm => gm.GroupId == id)
+            .Select(gm => new
+            {
+                gm.UserId,
+                gm.User.Email
+            })
+            .ToListAsync();
+
+        var expenses = await _db.Expenses
+            .AsNoTracking()
+            .Include(e => e.Participants)
+            .Where(e => e.GroupId == id)
+            .ToListAsync();
+
+        var balances = members
+            .Select(member =>
+            {
+                var paid = expenses
+                    .Where(e => e.PaidByUserId == member.UserId)
+                    .Sum(e => e.Amount);
+
+                var owed = expenses
+                    .SelectMany(e => e.Participants)
+                    .Where(p => p.UserId == member.UserId)
+                    .Sum(p => p.ShareAmount);
+
+                return new GroupBalanceResponse
+                {
+                    UserId = member.UserId,
+                    Email = member.Email,
+                    Paid = paid,
+                    Owed = owed,
+                    Balance = paid - owed
+                };
+            })
+            .OrderByDescending(x => x.Balance)
+            .ToList();
+
+        return Ok(balances);
+    }
 }

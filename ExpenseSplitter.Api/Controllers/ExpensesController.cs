@@ -138,17 +138,7 @@ public class ExpensesController : ControllerBase
         if (!groupExists)
             return BadRequest(new { message = "Group does not exist." });
 
-        var payerExists = await _context.Users.AnyAsync(u => u.Id == paidByUserId);
-        if (!payerExists)
-            return BadRequest(new { message = "PaidByUser does not exist." });
-
         var participantUserIds = participants.Select(p => p.UserId).ToList();
-
-        var existingUsersCount = await _context.Users
-            .CountAsync(u => participantUserIds.Contains(u.Id));
-
-        if (existingUsersCount != participantUserIds.Count)
-            return BadRequest(new { message = "One or more participants do not exist." });
 
         if (participantUserIds.Distinct().Count() != participantUserIds.Count)
             return BadRequest(new { message = "Participants cannot contain duplicate users." });
@@ -158,8 +148,20 @@ public class ExpensesController : ControllerBase
 
         var sharesSum = participants.Sum(p => p.ShareAmount);
 
-        if (sharesSum != amount)
+        if (decimal.Round(sharesSum, 2) != decimal.Round(amount, 2))
             return BadRequest(new { message = "Sum of participant shares must equal total expense amount." });
+
+        var groupMemberIds = await _context.GroupMembers
+            .Where(gm => gm.GroupId == groupId)
+            .Select(gm => gm.UserId)
+            .ToListAsync();
+
+        if (!groupMemberIds.Contains(paidByUserId))
+            return BadRequest(new { message = "PaidByUser must be a member of the group." });
+
+        var invalidParticipantExists = participantUserIds.Any(userId => !groupMemberIds.Contains(userId));
+        if (invalidParticipantExists)
+            return BadRequest(new { message = "All participants must be members of the group." });
 
         return null;
     }

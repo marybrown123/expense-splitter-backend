@@ -4,10 +4,12 @@ using ExpenseSplitter.Application.Entities;
 using ExpenseSplitter.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ExpenseSplitter.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/settlements")]
 public class SettlementsController : ControllerBase
 {

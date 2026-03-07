@@ -58,9 +58,9 @@ The project is currently in the early development stage. Below is a breakdown of
 - [x] Docker + PostgreSQL 
 - [x]  Entity Models
 - [x]  Database migrations
-- [ ]  Basic CRUD endpoints
-- [ ]  Expense splitting logic
-- [ ]  Authentication
+- [x]  Basic CRUD endpoints
+- [x]  Expense splitting logic
+- [x]  Authentication
 
 ## API endpoints
 The list of available API endpoints will be added as they are implemented.

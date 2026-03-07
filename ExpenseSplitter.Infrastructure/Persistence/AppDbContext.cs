@@ -29,7 +29,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<GroupMember>()
             .HasOne(x => x.User)
             .WithMany(u => u.Groups)
-            .HasForeignKey(x => x.UserId);
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<ExpenseParticipant>()
             .HasKey(x => new { x.ExpenseId, x.UserId });
@@ -42,13 +43,26 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ExpenseParticipant>()
             .HasOne(x => x.User)
             .WithMany(u => u.ExpenseParticipations)
-            .HasForeignKey(x => x.UserId);
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Expense>()
+            .HasOne(x => x.Group)
+            .WithMany(g => g.Expenses)
+            .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Expense>()
             .HasOne(x => x.PaidByUser)
             .WithMany(u => u.PaidExpenses)
             .HasForeignKey(x => x.PaidByUserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Settlement>()
+            .HasOne(x => x.Group)
+            .WithMany(g => g.Settlements)
+            .HasForeignKey(x => x.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Settlement>()
             .HasOne(x => x.FromUser)

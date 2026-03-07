@@ -4,10 +4,12 @@ Backend API for splitting expenses between users and groups.
 Built with **.NET** and **PostgreSQL**.
 
 ## Tech Stack
-- .NET (ASP.NET Core Web API)
--   PostgreSQL    
--   Docker
--   Entity Framework Core
+- <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/dotnetcore/dotnetcore-original.svg" height="20"/> ASP.NET Core Web API  
+- <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/csharp/csharp-original.svg" height="20"/> C#  
+- <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" height="20"/> PostgreSQL  
+- <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" height="20"/> Docker  
+- <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/dotnetcore/dotnetcore-original.svg" height="20"/> Entity Framework Core
+- <img src="https://cdn.simpleicons.org/jsonwebtokens/white" height="20"/> JSON Web Token (JWT)
 
 ## Features (planned)
 -   User management

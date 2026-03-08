@@ -5,6 +5,7 @@ using ExpenseSplitter.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace ExpenseSplitter.Api.Controllers;
 
@@ -21,22 +22,24 @@ public class GroupsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     [ProducesResponseType(typeof(GroupResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<GroupResponse>> Create(CreateGroupRequest request)
     {
-        var ownerExists = await _db.Users.AnyAsync(u => u.Id == request.OwnerId);
-        if (!ownerExists)
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out var userId))
         {
-            return BadRequest(new { message = "Owner user does not exist." });
+            return Unauthorized();
         }
 
         var group = new Group
         {
-            Name = request.Name.Trim(),
-            Currency = string.IsNullOrWhiteSpace(request.Currency) ? "PLN" : request.Currency.Trim().ToUpper(),
-            OwnerId = request.OwnerId,
-            CreatedAt = DateTime.UtcNow
+            Name = request.Name,
+            Currency = request.Currency,
+            OwnerId = userId
         };
 
         _db.Groups.Add(group);
@@ -44,7 +47,7 @@ public class GroupsController : ControllerBase
         _db.GroupMembers.Add(new GroupMember
         {
             GroupId = group.Id,
-            UserId = request.OwnerId,
+            UserId = userId,
             JoinedAt = DateTime.UtcNow
         });
 

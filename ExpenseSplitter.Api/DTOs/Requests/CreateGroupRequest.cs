@@ -10,7 +10,4 @@ public class CreateGroupRequest
 
     [MaxLength(10)]
     public string Currency { get; set; } = "PLN";
-
-    [Required]
-    public Guid OwnerId { get; set; }
 }

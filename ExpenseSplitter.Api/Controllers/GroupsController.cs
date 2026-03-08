@@ -65,10 +65,21 @@ public class GroupsController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(List<GroupResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<List<GroupResponse>>> GetAll()
     {
-        var groups = await _db.Groups
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var groups = await _db.GroupMembers
             .AsNoTracking()
+            .Where(gm => gm.UserId == userId)
+            .Select(gm => gm.Group)
+            .Distinct()
             .OrderByDescending(g => g.CreatedAt)
             .Select(g => new GroupResponse
             {

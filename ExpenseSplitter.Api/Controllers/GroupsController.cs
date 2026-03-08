@@ -263,6 +263,25 @@ public class GroupsController : ControllerBase
         return Ok(suggestions);
     }
 
+    [HttpGet("{id:guid}/members")]
+    public async Task<ActionResult<List<GroupMemberResponse>>> GetMembers(Guid id)
+    {
+        var members = await _db.GroupMembers
+            .Include(gm => gm.User)
+            .Where(gm => gm.GroupId == id)
+            .Select(gm => new GroupMemberResponse
+            {
+                GroupId = gm.GroupId,
+                UserId = gm.UserId,
+                Username = gm.User.Username,
+                Role = gm.Role.ToString(),
+                JoinedAt = gm.JoinedAt
+            })
+            .ToListAsync();
+
+        return Ok(members);
+    }
+
     private async Task<List<GroupBalanceResponse>> CalculateBalances(Guid groupId)
     {
         var members = await _db.GroupMembers

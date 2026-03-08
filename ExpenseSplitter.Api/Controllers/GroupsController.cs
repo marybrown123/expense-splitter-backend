@@ -42,6 +42,10 @@ public class GroupsController : ControllerBase
             OwnerId = userId
         };
 
+        var owner = await _db.Users
+            .AsNoTracking()
+            .FirstAsync(u => u.Id == userId);
+
         _db.Groups.Add(group);
 
         _db.GroupMembers.Add(new GroupMember
@@ -59,6 +63,7 @@ public class GroupsController : ControllerBase
             Name = group.Name,
             Currency = group.Currency,
             OwnerId = group.OwnerId,
+            OwnerName = owner.Username,
             CreatedAt = group.CreatedAt
         });
     }
@@ -87,6 +92,7 @@ public class GroupsController : ControllerBase
                 Name = g.Name,
                 Currency = g.Currency,
                 OwnerId = g.OwnerId,
+                OwnerName = g.Owner.Username,
                 CreatedAt = g.CreatedAt
             })
             .ToListAsync();
@@ -101,6 +107,7 @@ public class GroupsController : ControllerBase
     {
         var group = await _db.Groups
             .AsNoTracking()
+            .Include(g => g.Owner)
             .FirstOrDefaultAsync(g => g.Id == id);
 
         if (group is null)
@@ -114,6 +121,7 @@ public class GroupsController : ControllerBase
             Name = group.Name,
             Currency = group.Currency,
             OwnerId = group.OwnerId,
+            OwnerName = group.Owner.Username,
             CreatedAt = group.CreatedAt
         });
     }

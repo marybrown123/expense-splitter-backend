@@ -18,6 +18,12 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Group>()
+            .HasOne(g => g.Owner)
+            .WithMany()
+            .HasForeignKey(g => g.OwnerId)
+            .OnDelete(DeleteBehavior.Restrict);        
+
         modelBuilder.Entity<GroupMember>()
             .HasKey(x => new { x.GroupId, x.UserId });
 

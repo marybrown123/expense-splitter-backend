@@ -16,6 +16,15 @@ public class GroupsController : ControllerBase
 {
     private readonly AppDbContext _db;
 
+    private async Task<bool> IsOwner(Guid groupId, Guid userId)
+    {
+        return await _db.GroupMembers
+            .AnyAsync(gm =>
+                gm.GroupId == groupId &&
+                gm.UserId == userId &&
+                gm.Role == GroupRole.Owner);
+    }
+
     public GroupsController(AppDbContext db)
     {
         _db = db;
@@ -42,12 +51,17 @@ public class GroupsController : ControllerBase
             OwnerId = userId
         };
 
+        var owner = await _db.Users
+            .AsNoTracking()
+            .FirstAsync(u => u.Id == userId);
+
         _db.Groups.Add(group);
 
         _db.GroupMembers.Add(new GroupMember
         {
             GroupId = group.Id,
             UserId = userId,
+            Role = GroupRole.Owner,
             JoinedAt = DateTime.UtcNow
         });
 
@@ -59,16 +73,28 @@ public class GroupsController : ControllerBase
             Name = group.Name,
             Currency = group.Currency,
             OwnerId = group.OwnerId,
+            OwnerName = owner.Username,
             CreatedAt = group.CreatedAt
         });
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(List<GroupResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<List<GroupResponse>>> GetAll()
     {
-        var groups = await _db.Groups
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var groups = await _db.GroupMembers
             .AsNoTracking()
+            .Where(gm => gm.UserId == userId)
+            .Select(gm => gm.Group)
+            .Distinct()
             .OrderByDescending(g => g.CreatedAt)
             .Select(g => new GroupResponse
             {
@@ -76,6 +102,7 @@ public class GroupsController : ControllerBase
                 Name = g.Name,
                 Currency = g.Currency,
                 OwnerId = g.OwnerId,
+                OwnerName = g.Owner.Username,
                 CreatedAt = g.CreatedAt
             })
             .ToListAsync();
@@ -90,6 +117,7 @@ public class GroupsController : ControllerBase
     {
         var group = await _db.Groups
             .AsNoTracking()
+            .Include(g => g.Owner)
             .FirstOrDefaultAsync(g => g.Id == id);
 
         if (group is null)
@@ -103,6 +131,7 @@ public class GroupsController : ControllerBase
             Name = group.Name,
             Currency = group.Currency,
             OwnerId = group.OwnerId,
+            OwnerName = group.Owner.Username,
             CreatedAt = group.CreatedAt
         });
     }
@@ -113,21 +142,36 @@ public class GroupsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GroupMemberResponse>> AddMember(Guid id, AddGroupMemberRequest request)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out var currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        var isOwner = await IsOwner(id, currentUserId);
+
+        if (!isOwner)
+        {
+            return Forbid();
+        }
+
         var group = await _db.Groups.FirstOrDefaultAsync(g => g.Id == id);
         if (group is null)
         {
             return NotFound(new { message = "Group not found." });
         }
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == request.UserId);
+        var email = request.Email.Trim().ToLower();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
         if (user is null)
         {
             return BadRequest(new { message = "User does not exist." });
         }
 
         var alreadyMember = await _db.GroupMembers
-            .AnyAsync(gm => gm.GroupId == id && gm.UserId == request.UserId);
-
+            .AnyAsync(gm => gm.GroupId == id && gm.UserId == user.Id);
         if (alreadyMember)
         {
             return BadRequest(new { message = "User is already a member of this group." });
@@ -136,7 +180,8 @@ public class GroupsController : ControllerBase
         var member = new GroupMember
         {
             GroupId = id,
-            UserId = request.UserId,
+            UserId = user.Id,
+            Role = GroupRole.Member,
             JoinedAt = DateTime.UtcNow
         };
 
@@ -147,7 +192,7 @@ public class GroupsController : ControllerBase
         {
             GroupId = member.GroupId,
             UserId = user.Id,
-            Email = user.Email,
+            Username = user.Username,
             Role = member.Role.ToString(),
             JoinedAt = member.JoinedAt
         });
@@ -186,7 +231,7 @@ public class GroupsController : ControllerBase
             .Select(x => new SettlementSuggestionItem
             {
                 UserId = x.UserId,
-                Email = x.Email,
+                Username = x.Username,
                 Amount = x.Balance
             })
             .OrderByDescending(x => x.Amount)
@@ -197,7 +242,7 @@ public class GroupsController : ControllerBase
             .Select(x => new SettlementSuggestionItem
             {
                 UserId = x.UserId,
-                Email = x.Email,
+                Username = x.Username,
                 Amount = Math.Abs(x.Balance)
             })
             .OrderByDescending(x => x.Amount)
@@ -220,9 +265,9 @@ public class GroupsController : ControllerBase
                 suggestions.Add(new SettlementSuggestionResponse
                 {
                     FromUserId = debtor.UserId,
-                    FromUserEmail = debtor.Email,
+                    FromUsername = debtor.Username,
                     ToUserId = creditor.UserId,
-                    ToUserEmail = creditor.Email,
+                    ToUsername = creditor.Username,
                     Amount = transferAmount
                 });
             }
@@ -244,6 +289,25 @@ public class GroupsController : ControllerBase
         return Ok(suggestions);
     }
 
+    [HttpGet("{id:guid}/members")]
+    public async Task<ActionResult<List<GroupMemberResponse>>> GetMembers(Guid id)
+    {
+        var members = await _db.GroupMembers
+            .Include(gm => gm.User)
+            .Where(gm => gm.GroupId == id)
+            .Select(gm => new GroupMemberResponse
+            {
+                GroupId = gm.GroupId,
+                UserId = gm.UserId,
+                Username = gm.User.Username,
+                Role = gm.Role.ToString(),
+                JoinedAt = gm.JoinedAt
+            })
+            .ToListAsync();
+
+        return Ok(members);
+    }
+
     private async Task<List<GroupBalanceResponse>> CalculateBalances(Guid groupId)
     {
         var members = await _db.GroupMembers
@@ -252,7 +316,7 @@ public class GroupsController : ControllerBase
             .Select(gm => new
             {
                 gm.UserId,
-                gm.User.Email
+                gm.User.Username
             })
             .ToListAsync();
 
@@ -290,7 +354,7 @@ public class GroupsController : ControllerBase
                 return new GroupBalanceResponse
                 {
                     UserId = member.UserId,
-                    Email = member.Email,
+                    Username = member.Username,
                     Paid = paid,
                     Owed = owed,
                     Balance = decimal.Round((paid - owed) - sentSettlements + receivedSettlements, 2)
@@ -304,7 +368,7 @@ public class GroupsController : ControllerBase
     private class SettlementSuggestionItem
     {
         public Guid UserId { get; set; }
-        public string Email { get; set; } = default!;
+        public string Username { get; set; } = default!;
         public decimal Amount { get; set; }
     }
 }

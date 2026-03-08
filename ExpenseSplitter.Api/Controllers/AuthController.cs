@@ -28,6 +28,7 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
         var email = request.Email.Trim().ToLower();
+        var username = request.Username.Trim();
 
         var userExists = await _db.Users.AnyAsync(u => u.Email == email);
         if (userExists)
@@ -37,6 +38,7 @@ public class AuthController : ControllerBase
 
         var user = new User
         {
+            Username = username,
             Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             CreatedAt = DateTime.UtcNow

@@ -186,7 +186,7 @@ public class GroupsController : ControllerBase
             .Select(x => new SettlementSuggestionItem
             {
                 UserId = x.UserId,
-                Email = x.Email,
+                Username = x.Username,
                 Amount = x.Balance
             })
             .OrderByDescending(x => x.Amount)
@@ -197,7 +197,7 @@ public class GroupsController : ControllerBase
             .Select(x => new SettlementSuggestionItem
             {
                 UserId = x.UserId,
-                Email = x.Email,
+                Username = x.Username,
                 Amount = Math.Abs(x.Balance)
             })
             .OrderByDescending(x => x.Amount)
@@ -220,9 +220,9 @@ public class GroupsController : ControllerBase
                 suggestions.Add(new SettlementSuggestionResponse
                 {
                     FromUserId = debtor.UserId,
-                    FromUserEmail = debtor.Email,
+                    FromUsername = debtor.Username,
                     ToUserId = creditor.UserId,
-                    ToUserEmail = creditor.Email,
+                    ToUsername = creditor.Username,
                     Amount = transferAmount
                 });
             }
@@ -252,7 +252,7 @@ public class GroupsController : ControllerBase
             .Select(gm => new
             {
                 gm.UserId,
-                gm.User.Email
+                gm.User.Username
             })
             .ToListAsync();
 
@@ -290,7 +290,7 @@ public class GroupsController : ControllerBase
                 return new GroupBalanceResponse
                 {
                     UserId = member.UserId,
-                    Email = member.Email,
+                    Username = member.Username,
                     Paid = paid,
                     Owed = owed,
                     Balance = decimal.Round((paid - owed) - sentSettlements + receivedSettlements, 2)
@@ -304,7 +304,7 @@ public class GroupsController : ControllerBase
     private class SettlementSuggestionItem
     {
         public Guid UserId { get; set; }
-        public string Email { get; set; } = default!;
+        public string Username { get; set; } = default!;
         public decimal Amount { get; set; }
     }
 }

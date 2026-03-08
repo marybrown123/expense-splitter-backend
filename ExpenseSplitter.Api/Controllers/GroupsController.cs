@@ -16,6 +16,15 @@ public class GroupsController : ControllerBase
 {
     private readonly AppDbContext _db;
 
+    private async Task<bool> IsOwner(Guid groupId, Guid userId)
+    {
+        return await _db.GroupMembers
+            .AnyAsync(gm =>
+                gm.GroupId == groupId &&
+                gm.UserId == userId &&
+                gm.Role == GroupRole.Owner);
+    }
+
     public GroupsController(AppDbContext db)
     {
         _db = db;
@@ -52,6 +61,7 @@ public class GroupsController : ControllerBase
         {
             GroupId = group.Id,
             UserId = userId,
+            Role = GroupRole.Owner,
             JoinedAt = DateTime.UtcNow
         });
 
@@ -132,6 +142,20 @@ public class GroupsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GroupMemberResponse>> AddMember(Guid id, AddGroupMemberRequest request)
     {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userIdClaim is null || !Guid.TryParse(userIdClaim, out var currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        var isOwner = await IsOwner(id, currentUserId);
+
+        if (!isOwner)
+        {
+            return Forbid();
+        }
+
         var group = await _db.Groups.FirstOrDefaultAsync(g => g.Id == id);
         if (group is null)
         {
@@ -157,6 +181,7 @@ public class GroupsController : ControllerBase
         {
             GroupId = id,
             UserId = user.Id,
+            Role = GroupRole.Member,
             JoinedAt = DateTime.UtcNow
         };
 

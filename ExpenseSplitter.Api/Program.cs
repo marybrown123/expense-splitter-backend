@@ -1,3 +1,4 @@
+using ExpenseSplitter.Api.Services;
 using ExpenseSplitter.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
@@ -10,6 +11,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.AddControllers();
+
+builder.Services.AddScoped<JwtService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

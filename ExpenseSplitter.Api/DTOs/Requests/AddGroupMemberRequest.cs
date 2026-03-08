@@ -5,5 +5,6 @@ namespace ExpenseSplitter.Api.DTOs.Requests;
 public class AddGroupMemberRequest
 {
     [Required]
-    public Guid UserId { get; set; }
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
 }

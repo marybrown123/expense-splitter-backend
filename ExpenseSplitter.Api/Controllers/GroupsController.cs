@@ -138,15 +138,16 @@ public class GroupsController : ControllerBase
             return NotFound(new { message = "Group not found." });
         }
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == request.UserId);
+        var email = request.Email.Trim().ToLower();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
         if (user is null)
         {
             return BadRequest(new { message = "User does not exist." });
         }
 
         var alreadyMember = await _db.GroupMembers
-            .AnyAsync(gm => gm.GroupId == id && gm.UserId == request.UserId);
-
+            .AnyAsync(gm => gm.GroupId == id && gm.UserId == user.Id);
         if (alreadyMember)
         {
             return BadRequest(new { message = "User is already a member of this group." });
@@ -155,7 +156,7 @@ public class GroupsController : ControllerBase
         var member = new GroupMember
         {
             GroupId = id,
-            UserId = request.UserId,
+            UserId = user.Id,
             JoinedAt = DateTime.UtcNow
         };
 
@@ -166,7 +167,7 @@ public class GroupsController : ControllerBase
         {
             GroupId = member.GroupId,
             UserId = user.Id,
-            Email = user.Email,
+            Username = user.Username,
             Role = member.Role.ToString(),
             JoinedAt = member.JoinedAt
         });
